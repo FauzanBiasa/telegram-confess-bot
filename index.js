@@ -196,7 +196,4 @@ app.listen(PORT, () => {
 });
 
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Bot is running on port ${PORT}`);
-});
+
