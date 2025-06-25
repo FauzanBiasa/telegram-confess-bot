@@ -60,23 +60,14 @@ app.post("/", async (req, res) => {
       bannedUsers.add(parsedId);
       saveBans();
 
-      const banMessage = `👤 #BANNED_USER
-
-Bot: ${BOT_USERNAME} [ ${BOT_ID} ]
-User ID: ${bannedId}
-Name: @${bannedUsername}`;
+      const banMessage = `👤 #BANNED_USER\n\nBot: ${BOT_USERNAME} [ ${BOT_ID} ]\nUser ID: ${bannedId}\nName: @${bannedUsername}`;
 
       await axios.post(`${TELEGRAM_API}/sendMessage`, {
         chat_id: CHANNEL_ID,
         text: banMessage,
         reply_markup: {
           inline_keyboard: [
-            [
-              {
-                text: "🔓 Unban",
-                callback_data: `unban:${bannedId}`,
-              },
-            ],
+            [{ text: "🔓 Unban", callback_data: `unban:${bannedId}` }],
           ],
         },
       });
@@ -105,14 +96,14 @@ Name: @${bannedUsername}`;
       bannedUsers.delete(parsedId);
       saveBans();
 
-      await axios.post(`${TELEGRAM_API}/answerCallbackQuery`, {
-        callback_query_id: query.id,
-        text: `✅ User ${parsedId} unbanned.`,
-      });
-
       await axios.post(`${TELEGRAM_API}/sendMessage`, {
         chat_id: CHANNEL_ID,
         text: `🔓 #UNBANNED_USER\nUser ID: ${parsedId} has been unbanned.`,
+      });
+
+      await axios.post(`${TELEGRAM_API}/answerCallbackQuery`, {
+        callback_query_id: query.id,
+        text: `✅ User ${parsedId} has been unbanned.`,
       });
 
       return res.sendStatus(200);
@@ -128,8 +119,23 @@ Name: @${bannedUsername}`;
   const username = msg.from?.username || "unknown";
   const text = msg.text || msg.caption || "";
 
-  // === /unban command ===
-  if (msg.text && msg.text.startsWith("/unban") && msg.from.id === ADMIN_ID) {
+  // === BLOCK BANNED USERS ===
+  if (bannedUsers.has(userId)) {
+    await axios.post(`${TELEGRAM_API}/sendMessage`, {
+      chat_id: userId,
+      text: "🚫 You are banned from sending confessions.",
+    });
+    return res.sendStatus(200);
+  }
+
+// === Ignore all commands (e.g. /start, /help, etc.)
+if (msg.text?.startsWith("/")) {
+  return res.sendStatus(200);
+}
+
+
+  // === /unban command (only for ADMIN) ===
+  if (msg.text && msg.text.startsWith("/unban") && userId === ADMIN_ID) {
     const parts = msg.text.split(" ");
     if (parts.length !== 2) {
       await axios.post(`${TELEGRAM_API}/sendMessage`, {
@@ -160,15 +166,6 @@ Name: @${bannedUsername}`;
       });
     }
 
-    return res.sendStatus(200);
-  }
-
-  // === BLOCK BANNED USERS ===
-  if (bannedUsers.has(userId)) {
-    await axios.post(`${TELEGRAM_API}/sendMessage`, {
-      chat_id: userId,
-      text: "🚫 You are banned from sending confessions.",
-    });
     return res.sendStatus(200);
   }
 
@@ -272,4 +269,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Confession Bot is running on port ${PORT}`);
 });
-
